@@ -8,29 +8,69 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// You normally want to run this under a separate "Testing" subscription
-// For lab purposes you will use your assigned subscription under the Cloud Dev/Ops program tenant
-var subscriptionID string = "<your-azure-subscription-id"
+// subscriptionID represents the Azure subscription ID.
+var subscriptionID = "9f7141c2-48ab-4f22-bc4f-e9ea835b1ff8"
 
+// TestAzureLinuxVMCreation tests the creation of an Azure Linux VM.
 func TestAzureLinuxVMCreation(t *testing.T) {
+	// Set up Terraform options.
 	terraformOptions := &terraform.Options{
-		// The path to where our Terraform code is located
-		TerraformDir: "../",
-		// Override the default terraform variables
+		TerraformDir: "../", // Terraform configuration directory.
 		Vars: map[string]interface{}{
-			"labelPrefix": "<your-college-id>",
+			"labelPrefix": "dewa0117", // Custom label prefix.
+		},
+	}
+
+	defer terraform.Destroy(t, terraformOptions) // Clean up after test.
+
+	terraform.InitAndApply(t, terraformOptions) // Apply Terraform configuration.
+
+	vmName := terraform.Output(t, terraformOptions, "vm_name")                        // Get VM name.
+	resourceGroupName := terraform.Output(t, terraformOptions, "resource_group_name") // Get resource group.
+
+	assert.True(t, azure.VirtualMachineExists(t, vmName, resourceGroupName, subscriptionID)) // Check VM existence.
+}
+
+// TestAzureLinuxVMUbuntuVersion verifies if the deployed Azure Linux VM is running the specified Ubuntu version.
+func TestAzureLinuxVMUbuntuVersion(t *testing.T) {
+	terraformOptions := &terraform.Options{
+		TerraformDir: "../",
+		Vars: map[string]interface{}{
+			"labelPrefix": "dewa0117",
 		},
 	}
 
 	defer terraform.Destroy(t, terraformOptions)
 
-	// Run `terraform init` and `terraform apply`. Fail the test if there are any errors.
 	terraform.InitAndApply(t, terraformOptions)
 
-	// Run `terraform output` to get the value of output variable
 	vmName := terraform.Output(t, terraformOptions, "vm_name")
 	resourceGroupName := terraform.Output(t, terraformOptions, "resource_group_name")
+	expectedVmImageVersion := terraform.Output(t, terraformOptions, "vm_image_version")
 
-	// Confirm VM exists
-	assert.True(t, azure.VirtualMachineExists(t, vmName, resourceGroupName, subscriptionID))
+	getVirtualMachineImage := azure.GetVirtualMachineImage(t, vmName, resourceGroupName, subscriptionID)
+
+	assert.Equal(t, expectedVmImageVersion, getVirtualMachineImage.Version)
+}
+
+// TestAzureNicExistsAndConnectedVm checks if a Network Interface Card (NIC) exists and is properly attached to the specified VM.
+func TestAzureNicExistsAndConnectedVm(t *testing.T) {
+	terraformOptions := &terraform.Options{
+		TerraformDir: "../",
+		Vars: map[string]interface{}{
+			"labelPrefix": "dewa0117",
+		},
+	}
+
+	defer terraform.Destroy(t, terraformOptions)
+
+	terraform.InitAndApply(t, terraformOptions)
+
+	vmName := terraform.Output(t, terraformOptions, "vm_name")
+	resourceGroupName := terraform.Output(t, terraformOptions, "resource_group_name")
+	nicName := terraform.Output(t, terraformOptions, "nic_name")
+
+	listNic := azure.GetVirtualMachineNics(t, vmName, resourceGroupName, subscriptionID)
+
+	assert.Contains(t, listNic, nicName)
 }

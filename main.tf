@@ -120,7 +120,7 @@ resource "azurerm_linux_virtual_machine" "webserver" {
 
   admin_ssh_key {
     username   = var.admin_username
-    public_key = file("~/.ssh/id_rsa.pub")
+    public_key = file("C:/Users/meetd/Desktop/Cloud Sem 2/Infrastructure As Code/Lab-6/cst8918-w24-a06-terratest/keypair.pub")
   }
 
   custom_data = data.cloudinit_config.init.rendered
